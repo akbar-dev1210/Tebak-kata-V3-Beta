@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Cari Kata Nusantara</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        body {
+            background-color: #1a1a2e;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            background-color: #16213e;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 650px;
+        }
+        h1 { color: #e94560; margin-bottom: 20px; }
+        button {
+            background-color: #0f3460; color: white; border: none;
+            padding: 12px 25px; margin: 8px; border-radius: 8px;
+            font-size: 16px; cursor: pointer; width: 80%; max-width: 300px;
+            transition: 0.3s;
+        }
+        button:hover { background-color: #e94560; }
+        
+        /* Layout Game */
+        .game-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        @media (min-width: 600px) {
+            .game-layout { flex-direction: row; justify-content: center; align-items: flex-start; }
+        }
+
+        /* Grid Huruf */
+        .grid-container {
+            display: grid;
+            gap: 4px;
+            background-color: #0f3460;
+            padding: 8px;
+            border-radius: 8px;
+        }
+        .cell {
+            width: 32px; height: 32px;
+            background-color: #1a1a2e;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; font-size: 16px; cursor: pointer;
+            border-radius: 4px; transition: 0.2s;
+        }
+        .cell.selected { background-color: #e94560; color: white; }
+        .cell.found { background-color: #4caf50; color: white; }
+
+        /* Daftar Kata Kelompok Kanan */
+        .word-list {
+            text-align: left; background: #0f3460; padding: 15px;
+            border-radius: 8px; min-width: 150px;
+        }
+        .word-item { margin: 8px 0; font-size: 16px; font-weight: 500; color: #a8dadc; }
+        .word-item.crossed { text-decoration: line-through; color: #4caf50; opacity: 0.6; }
+
+        #game-screen, #settings-screen, #win-screen { display: none; }
+        .level-title { font-size: 22px; font-weight: bold; margin-bottom: 5px; color: #e94560;}
+        .hint { color: #a8dadc; margin-bottom: 15px; font-size: 14px;}
+    </style>
+</head>
+<body>
+
+    <audio id="bgMusic" loop>
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="lobby-screen" class="container">
+        <h1>Cari Kata<br>Nusantara</h1>
+        <button onclick="startGame()">Mulai Game</button>
+        <button onclick="showSettings()">Pengaturan</button>
+        <button onclick="exitGame()">Keluar</button>
+    </div>
+
+    <div id="settings-screen" class="container">
+        <h1>Pengaturan</h1>
+        <button onclick="toggleMusic()" id="musicBtn">Matikan Musik</button><br>
+        <button onclick="backToLobby()">Kembali ke Lobi</button>
+    </div>
+
+    <div id="game-screen" class="container">
+        <div class="level-title" id="levelDisplay">Level 1</div>
+        <div class="hint" id="hintDisplay">Tema: -</div>
+        
+        <div class="game-layout">
+            <div id="grid" class="grid-container"></div>
+            
+            <div class="word-list">
+                <h3 style="margin-top:0; color:#fff;">Daftar Kata:</h3>
+                <div id="wordsToFind"></div>
+            </div>
+        </div>
+        <br>
+        <button onclick="clearSelection()" style="width:auto; padding:8px 15px; font-size:14px;">Hapus Pilihan</button>
+        <button onclick="backToLobby()" style="width:auto; padding:8px 15px; font-size:14px;">Lobi</button>
+    </div>
+
+    <div id="win-screen" class="container">
+        <h1>Selamat! 🎉</h1>
+        <p>Kamu luar biasa! Semua level dari yang mudah sampai yang tersulit berhasil kamu pecahkan!</p>
+        <button onclick="backToLobby()">Main Lagi</button>
+    </div>
+
+    <script>
+        // Data Level 1-10 (Ukuran grid membesar seiring naiknya level agar semakin sulit)
+        const levels = [
+            { level: 1, size: 6, theme: "Benda Sekolah", words: ["BUKU", "PENA", "MEJA"], gridData: ["B","U","K","U","X","O","P","E","N","A","Y","P","M","E","J","A","Z","Q","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R"] },
+            { level: 2, size: 7, theme: "Sejarah", words: ["CANDI", "RAJA", "ARCA"], gridData: ["C","A","N","D","I","X","Y","X","R","A","J","A","Y","Z","A","R","C","A","W","V","U","K","L","M","N","O","P","Q","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U"] },
+            { level: 3, size: 8, theme: "Otomotif", words: ["SIRKUIT", "BALAP", "BAN"], gridData: ["S","I","R","K","U","I","T","X","O","B","A","L","A","P","Y","Z","X","B","A","N","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F"] },
+            { level: 4, size: 8, theme: "Penerbangan", words: ["BANDARA", "PILOT", "AVTUR"], gridData: ["B","A","N","D","A","R","A","X","X","P","I","L","O","T","Y","Z","A","V","T","U","R","W","V","U","X","Y","Z","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","A","B","C","D","E","F","G","H","I","J","K"] },
+            { level: 5, size: 9, theme: "Kerajaan Buddha", words: ["SRIWIJAYA", "EMAS"], gridData: ["S","R","I","W","I","J","A","Y","A","X","E","M","A","S","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L"] },
+            { level: 6, size: 9, theme: "Komponen Pesawat", words: ["KOKPIT", "SAYAP", "MESIN"], gridData: ["K","O","K","P","I","T","X","Y","Z","S","A","Y","A","P","W","V","U","T","M","E","S","I","N","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N"] },
+            { level: 7, size: 10, theme: "Fisika Balap", words: ["AERODINAMIKA", "GAYA"], gridData: ["A","E","R","O","D","I","N","A","M","I","K","A","X","Y","Z","W","V","U","T","S","G","A","Y","A","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U"] },
+            { level: 8, size: 10, theme: "Kerajaan Hindu", words: ["MAJAPAHIT", "KEDIRI"], gridData: ["M","A","J","A","P","A","H","I","T","X","K","E","D","I","R","I","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U"] },
+            { level: 9, size: 11, theme: "Bahan Bakar & Udara", words: ["AVTUR", "PROPULSI", "GAS"], gridData: ["A","V","T","U","R","X","Y","Z","W","V","U","P","R","O","P","U","L","S","I","T","S","R","G","A","S","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","A"] },
+            { level: 10, size: 12, theme: "Kerajaan Tertua", words: ["TARUMANEGARA", "KUTAI"], gridData: ["T","A","R","U","M","A","N","E","G","A","R","A","K","U","T","A","I","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y","X","W","V","U","T","S","R","Q","P","O","N","M","L","K","J","I","H","G","F","E","D","C","B","A","Z","Y"] }
+        ];
+
+        let currentLevelIndex = 0;
+        let isMusicPlaying = false;
+        let selectedLetters = [];
+        let foundWords = [];
+        const bgMusic = document.getElementById("bgMusic");
+
+        function hideAllScreens() {
+            document.getElementById("lobby-screen").style.display = "none";
+            document.getElementById("game-screen").style.display = "none";
+            document.getElementById("settings-screen").style.display = "none";
+            document.getElementById("win-screen").style.display = "none";
+        }
+
+        function backToLobby() {
+            hideAllScreens();
+            document.getElementById("lobby-screen").style.display = "block";
+        }
+
+        function showSettings() {
+            hideAllScreens();
+            document.getElementById("settings-screen").style.display = "block";
+        }
+
+        function toggleMusic() {
+            if (isMusicPlaying) {
+                bgMusic.pause();
+                isMusicPlaying = false;
+                document.getElementById("musicBtn").innerText = "Nyalakan Musik";
+            } else {
+                bgMusic.play().catch(e => console.log("Interaksi dibutuhkan."));
+                isMusicPlaying = true;
+                document.getElementById("musicBtn").innerText = "Matikan Musik";
+            }
+        }
+
+        function startGame() {
+            if (!isMusicPlaying) {
+                bgMusic.volume = 0.2;
+                bgMusic.play().then(() => isMusicPlaying = true).catch(e => console.log("Autoplay diblokir"));
+            }
+            currentLevelIndex = 0;
+            hideAllScreens();
+            document.getElementById("game-screen").style.display = "block";
+            loadLevel();
+        }
+
+        // Membaca Level dan Membuat Grid
+        function loadLevel() {
+            const levelData = levels[currentLevelIndex];
+            document.getElementById("levelDisplay").innerText = "Level " + levelData.level;
+            document.getElementById("hintDisplay").innerText = "Tema: " + levelData.theme;
+            
+            selectedLetters = [];
+            foundWords = [];
+
+            // Tampilkan Daftar Kata di Samping
+            const wordsContainer = document.getElementById("wordsToFind");
+            wordsContainer.innerHTML = "";
+            levelData.words.forEach(word => {
+                const div = document.createElement("div");
+                div.className = "word-item";
+                div.id = "word-" + word;
+                div.innerText = word;
+                wordsContainer.appendChild(div);
+            });
+
+            // Set Struktur Grid HTML
+            const gridContainer = document.getElementById("grid");
+            gridContainer.innerHTML = "";
+            gridContainer.style.gridTemplateColumns = `repeat(${levelData.size}, 1fr)`;
+
+            // Isi Grid dengan Huruf
+            levelData.gridData.forEach((letter, index) => {
+                const cell = document.createElement("div");
+                cell.className = "cell";
+                cell.innerText = letter;
+                cell.dataset.index = index;
+                cell.onclick = () => selectCell(cell, letter, index);
+                gridContainer.appendChild(cell);
+            });
+        }
+
+        // Logika Ketika Huruf di-Klik
+        function selectCell(cell, letter, index) {
+            // Jika huruf sudah ditemukan (sukses), tidak bisa di-klik lagi
+            if (cell.classList.contains("found")) return;
+
+            const position = selectedLetters.findIndex(item => item.index === index);
+
+            if (position > -1) {
+                // Jika di-klik lagi, batalkan pilihan huruf ini
+                cell.classList.remove("selected");
+                selectedLetters.splice(position, 1);
+            } else {
+                // Pilih huruf baru
+                cell.classList.add("selected");
+                selectedLetters.push({ cell, letter, index });
+            }
+
+            checkSelectedWord();
+        }
+
+        // Cek apakah gabungan huruf membentuk kata yang dicari
+        function checkSelectedWord() {
+            // Susun huruf berdasarkan urutan klik pemain
+            const formedWord = selectedLetters.map(item => item.letter).join("");
+            const reverseFormedWord = formedWord.split("").reverse().join(""); // mendukung pencarian terbalik
+            const levelData = levels[currentLevelIndex];
+
+            levelData.words.forEach(word => {
+                if ((formedWord === word || reverseFormedWord === word) && !foundWords.includes(word)) {
+                    foundWords.push(word);
+                    
+                    // Beri tanda sukses (warna hijau) pada grid huruf
+                    selectedLetters.forEach(item => {
+                        item.cell.classList.remove("selected");
+                        item.cell.classList.add("found");
+                    });
+                    
+                    // Coret kata di daftar kanan
+                    document.getElementById("word-" + word).classList.add("crossed");
+                    
+                    // Reset pilihan saat ini
+                    selectedLetters = [];
+
+                    // Cek jika semua kata di level ini sudah ketemu
+                    if (foundWords.length === levelData.words.length) {
+                        setTimeout(() => {
+                            currentLevelIndex++;
+                            if (currentLevelIndex < levels.length) {
+                                loadLevel();
+                            } else {
+                                hideAllScreens();
+                                document.getElementById("win-screen").style.display = "block";
+                            }
+                        }, 1200);
+                    }
+                }
+            });
+        }
+
+        // Tombol Reset Pilihan Huruf jika buntu
+        function clearSelection() {
+            selectedLetters.forEach(item => item.cell.classList.remove("selected"));
+            selectedLetters = [];
+        }
+
+        function exitGame() {
+            alert("Terima kasih sudah berkunjung!");
+            window.close();
+        }
+    </script>
+</body>
+</html>
